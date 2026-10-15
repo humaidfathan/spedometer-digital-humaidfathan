@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speedometer Digital</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      color: white;
+      background: #0f172a;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      padding: 28px;
+      border-radius: 24px;
+      background: #1e293b;
+      text-align: center;
+      box-shadow: 0 15px 40px #0005;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 25px;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    .speed {
+      margin: 28px 0 5px;
+      font-size: 76px;
+      font-weight: bold;
+      color: #38bdf8;
+    }
+
+    .unit {
+      color: #cbd5e1;
+    }
+
+    .track {
+      height: 10px;
+      margin: 25px 0;
+      background: #334155;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #bar {
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+      transition: width 0.15s;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+      accent-color: #38bdf8;
+    }
+
+    .limits {
+      display: flex;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+
+    .status {
+      margin: 24px 0;
+      padding: 15px;
+      border-radius: 12px;
+      background: #064e3b;
+      color: #a7f3d0;
+      font-weight: bold;
+    }
+
+    .status.warning {
+      background: #7f1d1d;
+      color: #fecaca;
+      animation: blink 0.8s infinite alternate;
+    }
+
+    @keyframes blink {
+      from { opacity: 1; }
+      to { opacity: 0.65; }
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #0284c7;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #334155;
+    }
+
+    .note {
+      margin-top: 20px;
+      color: #94a3b8;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <h1>🏎️ SPEEDOMETER</h1>
+    <p class="subtitle">SIMULASI KECEPATAN DIGITAL</p>
+
+    <div class="speed" id="speed">0</div>
+    <div class="unit">km/jam</div>
+
+    <div class="track">
+      <div id="bar"></div>
+    </div>
+
+    <input
+      id="slider"
+      type="range"
+      min="0"
+      max="160"
+      value="0"
+      aria-label="Atur kecepatan"
+    >
+
+    <div class="limits">
+      <span>0 km/jam</span>
+      <span>Batas: 80 km/jam</span>
+      <span>160</span>
+    </div>
+
+    <div class="status" id="status">
+      ● KECEPATAN NORMAL
+    </div>
+
+    <button id="soundButton">Aktifkan Suara Alarm</button>
+    <button class="secondary" id="resetButton">
+      Reset Kecepatan
+    </button>
+
+    <p class="note">
+      Mode simulasi: angka diatur secara manual.
+      Tidak membaca kecepatan kendaraan sebenarnya.
+    </p>
+  </main>
+
+  <script>
+    const slider = document.getElementById("slider");
+    const speedText = document.getElementById("speed");
+    const bar = document.getElementById("bar");
+    const statusBox = document.getElementById("status");
+    const soundButton = document.getElementById("soundButton");
+    const resetButton = document.getElementById("resetButton");
+
+    let audioContext = null;
+    let soundEnabled = false;
+    let alarmTimer = null;
+
+    function beep() {
+      if (!soundEnabled || !audioContext) return;
+
+      const oscillator = audioContext.createOscillator();
+      const volume = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      volume.gain.value = 0.12;
+
+      oscillator.connect(volume);
+      volume.connect(audioContext.destination);
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.18);
+    }
+
+    function updateSpeed() {
+      const speed = Number(slider.value);
+
+      speedText.textContent = speed;
+      bar.style.width = (speed / 160 * 100) + "%";
+
+      if (speed > 80) {
+        statusBox.textContent = "⚠ ALARM! KECEPATAN BERLEBIH";
+        statusBox.classList.add("warning");
+        bar.style.background = "#ef4444";
+
+        if (soundEnabled && !alarmTimer) {
+          beep();
+          alarmTimer = setInterval(beep, 800);
+        }
+      } else {
+        statusBox.textContent = "● KECEPATAN NORMAL";
+        statusBox.classList.remove("warning");
+        bar.style.background = "#38bdf8";
+
+        clearInterval(alarmTimer);
+        alarmTimer = null;
+      }
+    }
+
+    slider.addEventListener("input", updateSpeed);
+
+    soundButton.addEventListener("click", async () => {
+      if (!audioContext) {
+        const AudioContextClass =
+          window.AudioContext || window.webkitAudioContext;
+
+        if (!AudioContextClass) {
+          alert("Browser ini tidak mendukung suara alarm.");
+          return;
+        }
+
+        audioContext = new AudioContextClass();
+      }
+
+      await audioContext.resume();
+      soundEnabled = !soundEnabled;
+
+      soundButton.textContent = soundEnabled
+        ? "Matikan Suara Alarm"
+        : "Aktifkan Suara Alarm";
+
+      if (soundEnabled && Number(slider.value) > 80) {
+        beep();
+        if (!alarmTimer) {
+          alarmTimer = setInterval(beep, 800);
+        }
+      } else {
+        clearInterval(alarmTimer);
+        alarmTimer = null;
+      }
+    });
+
+    resetButton.addEventListener("click", () => {
+      slider.value = 0;
+      updateSpeed();
+    });
+
+    updateSpeed();
+  </script>
+</body>
+</html>
